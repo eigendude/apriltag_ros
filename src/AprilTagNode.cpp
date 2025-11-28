@@ -61,6 +61,26 @@ const static std::unordered_map<std::string, rmw_qos_profile_t> qos_profiles{
     {"system_default", rmw_qos_profile_system_default},
 };
 
+// Helper to construct TransformBroadcaster using the deprecated Node*
+// constructor while suppressing -Wdeprecated-declarations on Rolling.
+// Newer tf2_ros prefers node_interfaces-based APIs, but this keeps the
+// same source building on older distros too.
+inline tf2_ros::TransformBroadcaster make_tf_broadcaster(rclcpp::Node* node)
+{
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+  tf2_ros::TransformBroadcaster broadcaster(node);
+
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
+
+  return broadcaster;
+}
+
 class AprilTagNode : public rclcpp::Node {
 public:
     AprilTagNode(const rclcpp::NodeOptions& options);
@@ -119,7 +139,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 #endif
     },
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
-    tf_broadcaster(this)
+    tf_broadcaster(make_tf_broadcaster(this))
 {
     // read-only parameters
     const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
